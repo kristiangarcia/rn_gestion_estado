@@ -1,50 +1,127 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
-import React from 'react'
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import React, { useEffect, useMemo, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Picker } from '@react-native-picker/picker'
+import SelectorNota from './components/SelectorNota'
+import { CURSOS, getCurso } from './model/Cursos'
+import * as R from 'ramda'
+import SelectorNumero from './components/SelectorNumero'
 
 export default function App() {
+  const [notaMedia, setNotaMedia] = useState(0)
+  const [listaNotas, setListaNotas] = useState<Array<number>>([])
+  const [nombre, setNombre] = useState("")
+  const [apellidos, setApellidos] = useState("")
+  const [idCursoSeleccionado, setIdCursoSeleccionado] = useState("1DAM")
+  const cursoSeleccionado = useMemo( () => getCurso(idCursoSeleccionado), [idCursoSeleccionado] )
+  useEffect(actualizarNotaMedia, [listaNotas])
+  useEffect(inicializarListaNotas, [cursoSeleccionado])
+
+  function inicializarListaNotas() {
+    const objetoCurso = getCurso(idCursoSeleccionado)
+    const listaCeros = R.repeat(0, objetoCurso.asignaturas.length)
+    setListaNotas(listaCeros)
+  }
+
+  function actualizarNotaMedia (){
+    const media = listaNotas.length === 0 ? 0 :
+    listaNotas.reduce( (valorPrevio, valorActual) => valorPrevio + valorActual ) / listaNotas.length
+    setNotaMedia(media)
+  }
+
+  function borrarDatos() {
+    setNombre("")
+    setApellidos("")
+    inicializarListaNotas()
+  }
+  function subirNota (posicion: number) {
+    const nuevaLista = R.update(posicion, listaNotas[posicion]+1, listaNotas)
+    setListaNotas (nuevaLista)
+  }
+  function bajarNota(posicion: number) {
+    const nuevaLista = R.update(posicion, listaNotas[posicion]-1, listaNotas)
+    setListaNotas (nuevaLista)
+  }
+
+  function getEstadisticas():Array<number> {
+    const aprobados = listaNotas.filter( nota => nota >= 5 ).length
+    const suspensos = listaNotas.length - aprobados
+    return [ aprobados, suspensos ]
+  }
+
+  function mostrarInformacion () {
+    const [aprobados, suspensos] = getEstadisticas ()
+    const info=`
+    Nombre: ${nombre}
+    Apellidos: ${apellidos}
+    Curso: ${cursoSeleccionado.nombre}
+    Aprobados: ${aprobados}
+    Suspensos: ${suspensos}
+
+    Nota media: ${notaMedia}
+    `
+    Alert.alert ("Boletín de notas", info)
+  }
+
   return (
     <SafeAreaView style={styles.contenedor}>
       <Text style={styles.titulo}>Mis notas</Text>
       <View style={styles.formulario}>
         <View style={styles.columna}>
           <Text style={styles.pista}>Nombre</Text>
-          <TextInput style={styles.cuadroTexto} placeholder={"Ejemplo: Juan Diego"}></TextInput>
+          <TextInput
+            style={styles.cuadroTexto}
+            placeholder={"Ejemplo: Juan Diego"}
+            value={nombre}
+            onChangeText={setNombre}
+          />
         </View>
         <View style={styles.columna}>
           <Text style={styles.pista}>Apellidos</Text>
-          <TextInput style={styles.cuadroTexto} placeholder={"Ejemplo: Bolívar Ramos"}></TextInput>
+          <TextInput
+            style={styles.cuadroTexto}
+            placeholder={"Ejemplo: Bolívar Ramos"}
+            value={apellidos}
+            onChangeText={setApellidos}
+          />
         </View>
         <View style={styles.columna}>
           <Text style={styles.pista}>Curso</Text>
           <View style={styles.picker}>
-            <Picker>
-              <Picker.Item label={"1º DAM"} value={"1DAM"} />
-              <Picker.Item label={"2º DAM"} value={"2DAM"} />
+            <Picker selectedValue={idCursoSeleccionado} onValueChange={setIdCursoSeleccionado}>
+              {
+                CURSOS.map( curso => <Picker.Item label={curso.nombre} value={curso.id}/> )
+              }
             </Picker>
           </View>
         </View>
         <View style={styles.columna}>
-          <View style={styles.fila}>
-            <Text>Nota de programación</Text>
-            <View style={styles.botonera}>
-              <Pressable style={[styles.boton, styles.rojo]}>
-                <Text style={styles.textoBoton}>-</Text>
-              </Pressable>
-              <Text style={styles.nota}>0</Text>
-              <Pressable style={[styles.boton, styles.verde]}>
-                <Text style={styles.textoBoton}>+</Text>
-              </Pressable>
-              </View>
-          </View>
+        {
+          cursoSeleccionado.asignaturas.map( (asignatura, i) =>
+            (
+              <SelectorNumero
+                key={asignatura}
+                texto={`Nota de ${asignatura}`}
+                valor={listaNotas[i]}
+                masPulsado = { () => subirNota (i) }
+                menosPulsado = { () => bajarNota (i) }
+              />
+            )
+          )
+        }
         </View>
       </View>
-      <Text style={styles.media}>Nota media</Text>
-      <Pressable style={[styles.botonAlargado, styles.azul]}>
+      <Text style={styles.media}>Nota media: {notaMedia}</Text>
+      <Pressable
+        style={[styles.botonAlargado, styles.azul]}
+        onPress={() => console.log(`${nombre} ${apellidos} ${idCursoSeleccionado}`)}
+      >
         <Text style={styles.textoBotonAlargado}>ACEPTAR</Text>
       </Pressable>
-      <Pressable style={[styles.botonAlargado, styles.rojo]}>
+      <Pressable
+        style={[styles.botonAlargado, styles.rojo]}
+        onPress={borrarDatos}
+      >
         <Text style={styles.textoBotonAlargado}>BORRAR</Text>
       </Pressable>
     </SafeAreaView>
@@ -69,13 +146,6 @@ const styles = StyleSheet.create({
   },
   columna: {
     paddingVertical: 8,
-  },
-  fila: {
-    flexDirection: "row",
-    alignItems: "center",
-    columnGap: 20,
-    marginTop: 8,
-    justifyContent: "space-between",
   },
   
   pista: {
@@ -105,9 +175,6 @@ const styles = StyleSheet.create({
   rojo: {
     backgroundColor: "#dc3545",
   },
-  verde: {
-    backgroundColor: "#28a745",
-  },
   
   cuadroTexto: {
     borderWidth: 1,
@@ -125,37 +192,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     marginBottom:8
-  },
-
-  boton: {
-    borderRadius: 16,
-    width: 36,
-    height: 36,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-  },
-  textoBoton: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-
-  nota: {
-    width: 30,
-    textAlign: "center",
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
-  },
-
-  botonera: {
-    flexDirection: "row",
-    columnGap: 10,
   },
   
   media: {

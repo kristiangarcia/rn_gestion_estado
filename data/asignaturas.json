@@ -1,0 +1,12 @@
+[
+    {
+        "id":"1DAM",
+        "nombre":"1º DAM",
+        "asignaturas": ["programación","entornos","bases de datos", "sistemas informáticos"]
+    },
+    {
+        "id":"2DAM",
+        "nombre":"2º DAM",
+        "asignaturas": ["interfaces de usuario","Móviles","servicios y procesos", "sistemas de gestión empresarial", "acceso a datos"]
+    }    
+]
